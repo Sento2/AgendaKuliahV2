@@ -45,6 +45,42 @@ class SupabaseService {
     }
   }
 
+  // 2.5 LOGIN / REGISTER OTOMATIS DENGAN GOOGLE
+  Future<User?> loginWithGoogleData(String email, String displayName) async {
+    try {
+      // Cek apakah email Google ini sudah terdaftar di tabel
+      final existingUser = await _supabase
+          .from('users')
+          .select()
+          .eq('email', email)
+          .maybeSingle();
+
+      if (existingUser != null) {
+        // Jika sudah ada, langsung return datanya (Login Berhasil)
+        return User.fromMap(existingUser);
+      } else {
+        // Jika belum ada, daftarkan otomatis (Register Berhasil)
+        final newUser = {
+          'username': displayName, // Pakai nama asli dari akun Google
+          'password': 'GOOGLE_OAUTH_USER', // Password acak khusus Google
+          'email': email,
+        };
+
+        // Insert dan kembalikan data baris yang baru saja dibuat
+        final response = await _supabase
+            .from('users')
+            .insert(newUser)
+            .select()
+            .single();
+
+        return User.fromMap(response);
+      }
+    } catch (e) {
+      print('Error Google Login/Register: $e');
+      return null;
+    }
+  }
+
   // 3. ADD TASK
   Future<bool> addTask(Task task) async {
     try {

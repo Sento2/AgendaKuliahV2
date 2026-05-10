@@ -6,7 +6,7 @@ plugins {
 }
 
 android {
-    namespace = "com.example.agenda_kuliah"
+    namespace = "com.kelompok4.agenda_kuliah"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
@@ -22,7 +22,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.example.agenda_kuliah"
+        applicationId = "com.kelompok4.agenda_kuliah"
         // UBAH MIN SDK DI SINI PAKAI SAMA DENGAN (=)
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion

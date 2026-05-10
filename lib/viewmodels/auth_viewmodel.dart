@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_sign_in/google_sign_in.dart'; // Import Package Google
 import '../data/services/supabase_service.dart';
 import '../models/user_model.dart';
 
@@ -16,33 +17,30 @@ class AuthViewModel extends ChangeNotifier {
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
 
-  // 1. FUNGSI LOGIN
+  // 1. FUNGSI LOGIN (REGULER)
   Future<bool> login(String username, String password) async {
     if (username.isEmpty || password.isEmpty) {
       _errorMessage = "Username dan password tidak boleh kosong!";
-      notifyListeners(); // Pengganti .setValue() untuk update UI
+      notifyListeners(); 
       return false;
     }
 
-    // Mulai loading
     _isLoading = true;
     _errorMessage = null; 
     notifyListeners();
 
-    // Proses ambil data dari Supabase (Pengganti Executors background thread)
     User? user = await _supabaseService.checkLogin(username, password);
 
-    // Selesai loading
     _isLoading = false;
     
     if (user != null) {
-      _currentUser = user; // Simpan data user yang login
+      _currentUser = user; 
       notifyListeners();
-      return true; // Berhasil login
+      return true; 
     } else {
       _errorMessage = "Username atau password salah!";
       notifyListeners();
-      return false; // Gagal login
+      return false; 
     }
   }
 
@@ -74,17 +72,70 @@ class AuthViewModel extends ChangeNotifier {
     
     if (isSuccess) {
       notifyListeners();
-      return true; // Berhasil register
+      return true; 
     } else {
       _errorMessage = "Gagal mendaftar. Coba lagi.";
       notifyListeners();
-      return false; // Gagal register
+      return false; 
     }
   }
 
-  // 3. FUNGSI LOGOUT (Tambahan)
-  void logout() {
+  // 3. FUNGSI LOGIN GOOGLE (BARU TERSAMBUNG SUPABASE)
+  Future<bool> loginWithGoogle() async {
+    _isLoading = true;
+    _errorMessage = null;
+    notifyListeners();
+
+    try {
+      final GoogleSignIn googleSignIn = GoogleSignIn(
+        scopes: [
+          'email',
+          'https://www.googleapis.com/auth/calendar.events', // Izin baca/tulis kalender
+        ],
+      );
+
+      // Memunculkan pop-up akun Google
+      final GoogleSignInAccount? googleUser = await googleSignIn.signIn();
+
+      if (googleUser == null) {
+        _isLoading = false;
+        _errorMessage = "Login Google dibatalkan.";
+        notifyListeners();
+        return false;
+      }
+
+      // Ambil email dan nama dari Google
+      String email = googleUser.email;
+      String displayName = googleUser.displayName ?? "Mahasiswa";
+
+      // Simpan/Cek ke Supabase Database kelompok kalian
+      User? dbUser = await _supabaseService.loginWithGoogleData(email, displayName);
+
+      _isLoading = false;
+
+      if (dbUser != null) {
+        _currentUser = dbUser; // Berhasil masuk!
+        notifyListeners();
+        return true; 
+      } else {
+        _errorMessage = "Gagal sinkronisasi dengan database.";
+        notifyListeners();
+        return false;
+      }
+
+    } catch (error) {
+      _isLoading = false;
+      _errorMessage = "Gagal login dengan Google: $error";
+      notifyListeners();
+      return false;
+    }
+  }
+
+  // 4. FUNGSI LOGOUT
+  void logout() async {
     _currentUser = null;
+    // Keluar dari sesi Google juga
+    await GoogleSignIn().signOut();
     notifyListeners();
   }
 }

@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../viewmodels/auth_viewmodel.dart';
-import '../../viewmodels/task_viewmodel.dart'; // Tambahkan ini
-import 'register_screen.dart'; // Sudah di-uncomment
-import 'main_screen.dart'; // Sudah di-uncomment
+import '../../viewmodels/task_viewmodel.dart'; 
+import 'register_screen.dart'; 
+import 'main_screen.dart'; 
 import '../../core/constants/app_theme.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -32,24 +32,34 @@ class _LoginScreenState extends State<LoginScreen> {
   void _handleLogin() async {
     final authViewModel = context.read<AuthViewModel>();
 
-    // Panggil fungsi login dari ViewModel
     bool success = await authViewModel.login(
       _usernameController.text,
       _passwordController.text,
     );
 
     if (!mounted) return;
+    _checkLoginSuccess(success, authViewModel);
+  }
 
+  // FUNGSI BARU: Untuk menangani klik tombol Google
+  void _handleGoogleLogin() async {
+    final authViewModel = context.read<AuthViewModel>();
+
+    // Panggil fungsi login Google dari ViewModel (Nanti kita buat fungsinya)
+    bool success = await authViewModel.loginWithGoogle();
+
+    if (!mounted) return;
+    _checkLoginSuccess(success, authViewModel);
+  }
+
+  // Dipisah agar kodenya tidak berulang
+  void _checkLoginSuccess(bool success, AuthViewModel authViewModel) {
     if (success) {
-      // 1. Ambil data user yang berhasil login
       final user = authViewModel.currentUser;
-
-      // 2. Beritahu TaskViewModel siapa yang sedang login agar datanya sinkron
       if (user != null) {
         context.read<TaskViewModel>().setUserId(user.id!);
       }
 
-      // 3. Pindah ke MainScreen (Komentar sudah dibuka)
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (context) => const MainScreen()),
@@ -157,6 +167,38 @@ class _LoginScreenState extends State<LoginScreen> {
                           );
                         },
                       ),
+                      const SizedBox(height: 12),
+                      
+                      // --- TOMBOL BARU: LOGIN DENGAN GOOGLE ---
+                      Consumer<AuthViewModel>(
+                        builder: (context, authViewModel, child) {
+                          return SizedBox(
+                            width: double.infinity,
+                            height: 50,
+                            child: OutlinedButton(
+                              onPressed: authViewModel.isLoading
+                                  ? null
+                                  : _handleGoogleLogin,
+                              style: OutlinedButton.styleFrom(
+                                side: const BorderSide(color: Colors.redAccent),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(8.0),
+                                ),
+                              ),
+                              child: const Text(
+                                "Login dengan Akun Google",
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  color: Colors.redAccent,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                      // ----------------------------------------
+
                       const SizedBox(height: 8),
                       TextButton(
                         onPressed: () {

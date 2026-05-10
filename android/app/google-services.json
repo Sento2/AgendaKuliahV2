@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "907455211779",
+    "project_id": "agenda-kuliah-kelompok4",
+    "storage_bucket": "agenda-kuliah-kelompok4.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:907455211779:android:fafeab68d80947d1332136",
+        "android_client_info": {
+          "package_name": "com.kelompok4.agenda_kuliah"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAsGzrjhORaZSDV_id6QJmIKEHqRPQ2a4g"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
