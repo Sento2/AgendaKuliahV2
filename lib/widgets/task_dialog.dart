@@ -1,5 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+
+// --- POIN 1: IMPORT GOOGLE CALENDAR & NOTIFIKASI ---
+import 'package:googleapis/calendar/v3.dart' as calendar;
+import 'package:extension_google_sign_in_as_googleapis_auth/extension_google_sign_in_as_googleapis_auth.dart';
+import 'package:google_sign_in/google_sign_in.dart';
+import '../../data/services/notification_service.dart'; // <--- Tambahan import alarm
+// ---------------------------------------------------
+
 import '../../models/task_model.dart';
 import '../../viewmodels/task_viewmodel.dart';
 import '../../core/constants/app_theme.dart';
@@ -21,6 +29,9 @@ class _TaskDialogState extends State<TaskDialog> {
   final TextEditingController _descController = TextEditingController();
 
   int _selectedPriority = 2; // Default: 2 (Sedang)
+  
+  // Variabel baru untuk menyimpan format waktu asli buat Google Calendar
+  DateTime? _selectedDateTime; 
 
   // Palet Warna dari AppTheme
   final Color navyBlue = AppTheme.primary;
@@ -48,6 +59,54 @@ class _TaskDialogState extends State<TaskDialog> {
     super.dispose();
   }
 
+  // --- POIN 2: MESIN KALENDER (Disetel zona waktu WITA) ---
+  Future<void> simpanKeKalender(String judulTugas, DateTime deadline) async {
+    try {
+      final GoogleSignIn googleSignIn = GoogleSignIn(
+        scopes: ['https://www.googleapis.com/auth/calendar.events'],
+      );
+
+      // Cek sesi login
+      final GoogleSignInAccount? currentUser = googleSignIn.currentUser ?? await googleSignIn.signInSilently();
+
+      if (currentUser == null) {
+        print("Gagal: User belum login Google!");
+        return;
+      }
+
+      // Minta akses kalender
+      final httpClient = await googleSignIn.authenticatedClient();
+      if (httpClient == null) {
+        print("Gagal mendapatkan akses client kalender.");
+        return;
+      }
+
+      final calendarApi = calendar.CalendarApi(httpClient);
+
+      // Format jadwal (Durasi 1 jam)
+      final event = calendar.Event(
+        summary: "Deadline: $judulTugas",
+        description: "Tugas dicatat otomatis dari aplikasi Agenda Kuliah",
+        start: calendar.EventDateTime(
+          dateTime: deadline,
+          timeZone: "Asia/Makassar", 
+        ),
+        end: calendar.EventDateTime(
+          dateTime: deadline.add(const Duration(hours: 1)),
+          timeZone: "Asia/Makassar",
+        ),
+      );
+
+      // Tembak ke kalender utama
+      await calendarApi.events.insert(event, "primary");
+      print("MANTAP! Jadwal berhasil masuk Google Calendar!");
+
+    } catch (e) {
+      print("Waduh, error waktu nyimpan ke kalender: $e");
+    }
+  }
+  // --------------------------------------------------------
+
   // Fungsi memunculkan kalender bawaan Material Design
   Future<void> _selectDate() async {
     DateTime? picked = await showDatePicker(
@@ -70,15 +129,16 @@ class _TaskDialogState extends State<TaskDialog> {
     );
 
     if (picked != null) {
-      // Format tanggal sederhana: DD/MM/YYYY
       setState(() {
-        _deadlineController.text =
-            "${picked.day}/${picked.month}/${picked.year}";
+        _selectedDateTime = picked; // <--- Simpan format aslinya di sini
+        _deadlineController.text = "${picked.day}/${picked.month}/${picked.year}";
       });
     }
   }
 
-  void _saveTask() {
+  // --- POIN 3: PANGGIL MESIN DI FUNGSI SIMPAN ---
+  // Fungsi _saveTask kita ubah jadi 'async'
+  void _saveTask() async { 
     // Validasi sederhana: Judul tidak boleh kosong
     if (_titleController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -92,28 +152,43 @@ class _TaskDialogState extends State<TaskDialog> {
 
     // Buat objek Task baru dari inputan
     final task = Task(
-      id: widget.existingTask?.id, // Akan tetap null jika mode Add
+      id: widget.existingTask?.id,
       title: _titleController.text.trim(),
       course: _courseController.text.trim(),
       deadline: _deadlineController.text.trim(),
       priority: _selectedPriority,
       description: _descController.text.trim(),
-      userId:
-          widget.existingTask?.userId ??
-          0, // 0 ini nanti akan ditimpa oleh ViewModel
+      userId: widget.existingTask?.userId ?? 0, 
       done: widget.existingTask?.done ?? false,
     );
 
     // Kirim ke ViewModel
     if (widget.existingTask == null) {
+      // 1. Simpan ke database lokal/Supabase
       context.read<TaskViewModel>().addTask(task);
+      
+      // 2. Tembak ke Google Calendar 
+      DateTime waktuKalender = _selectedDateTime ?? DateTime.now();
+      await simpanKeKalender(task.title, waktuKalender);
+      
+      // 3. PASANG ALARM NOTIFIKASI
+      await NotificationService().scheduleTaskNotifications(task, daysBeforeDeadline: [1]);
+      
+      // 4. NOTIFIKASI INSTAN (Sebagai tanda berhasil saat itu juga)
+      await NotificationService().showInstantNotification(
+        title: "Tugas Berhasil Disimpan!",
+        body: "Alarm disetel H-1 sebelum deadline ${task.title}",
+      );
+
     } else {
       context.read<TaskViewModel>().updateTask(task);
+      // Jika butuh update alarm saat edit, bisa dipanggil lagi di sini nanti
     }
 
     // Tutup dialog
     Navigator.pop(context);
   }
+  // ----------------------------------------------
 
   @override
   Widget build(BuildContext context) {
@@ -123,7 +198,9 @@ class _TaskDialogState extends State<TaskDialog> {
     return AlertDialog(
       backgroundColor: theme.cardColor,
       shape: AppTheme.cardShape(radius: 20),
-      titlePadding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
+      // Mencegah overflow saat keyboard muncul dengan batas aman
+      insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24), 
+      titlePadding: const EdgeInsets.fromLTRB(20, 20, 10, 8), // Sedikit digeser biar lonceng muat
       contentPadding: const EdgeInsets.fromLTRB(20, 0, 20, 0),
       actionsPadding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
       title: Row(
@@ -140,13 +217,31 @@ class _TaskDialogState extends State<TaskDialog> {
             ),
           ),
           const SizedBox(width: 12),
-          Text(
-            widget.existingTask == null ? 'Tambah Tugas' : 'Edit Tugas',
-            style: TextStyle(color: titleColor, fontWeight: FontWeight.bold),
+          // BUNGKUS DENGAN EXPANDED AGAR TEKS TIDAK OVERFLOW KE KANAN
+          Expanded(
+            child: Text(
+              widget.existingTask == null ? 'Tambah Tugas' : 'Edit Tugas',
+              style: TextStyle(color: titleColor, fontWeight: FontWeight.bold),
+              overflow: TextOverflow.ellipsis,
+            ),
           ),
+          
+          // --- TAMBAHAN TOMBOL LONCENG DARURAT DI SINI BANG ---
+          IconButton(
+            icon: const Icon(Icons.notifications_active, color: Colors.amber, size: 24),
+            onPressed: () async {
+              await NotificationService().showInstantNotification(
+                title: "TES ALARM MASUK!",
+                body: "Halo haddy, notifikasi HP anda aman jaya!",
+              );
+            },
+          ),
+          // ----------------------------------------------------
         ],
       ),
       content: SingleChildScrollView(
+        // Tambahan agar scroll empuk
+        physics: const BouncingScrollPhysics(),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -177,7 +272,7 @@ class _TaskDialogState extends State<TaskDialog> {
             ),
             const SizedBox(height: 12),
 
-            // 3. Deadline (Mode ReadOnly + OnTap memunculkan kalender)
+            // 3. Deadline
             TextField(
               controller: _deadlineController,
               readOnly: true,
@@ -198,8 +293,10 @@ class _TaskDialogState extends State<TaskDialog> {
               'Prioritas:',
               style: TextStyle(fontWeight: FontWeight.bold),
             ),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
+            // GANTI ROW MENJADI WRAP AGAR OTOMATIS TURUN KALAU SEMPIT
+            Wrap(
+              spacing: 12,
+              runSpacing: 4,
               children: [
                 _buildRadio(1, 'Rendah'),
                 _buildRadio(2, 'Sedang'),

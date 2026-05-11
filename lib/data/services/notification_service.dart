@@ -17,8 +17,9 @@ class NotificationService {
   Future<void> init() async {
     _plugin = FlutterLocalNotificationsPlugin();
 
-    // Initialize timezone
+    // Initialize timezone & Set Lokal ke WITA (Palu)
     tz_data.initializeTimeZones();
+    tz.setLocalLocation(tz.getLocation('Asia/Makassar')); 
 
     // Android initialization
     const AndroidInitializationSettings androidSettings =
@@ -40,14 +41,21 @@ class NotificationService {
     await _plugin.initialize(initSettings);
   }
 
-  // Request notification permissions (iOS 10+)
+  // Request notification permissions (Update untuk Android 13+ dan iOS)
   Future<bool> requestPermissions() async {
+    // 1. Request untuk Android 13+ (PENTING BUAT HP BARU)
+    await _plugin
+        .resolvePlatformSpecificImplementation<
+            AndroidFlutterLocalNotificationsPlugin>()
+        ?.requestNotificationsPermission();
+
+    // 2. Request untuk iOS
     final result = await _plugin
         .resolvePlatformSpecificImplementation<
-          IOSFlutterLocalNotificationsPlugin
-        >()
+            IOSFlutterLocalNotificationsPlugin>()
         ?.requestPermissions(alert: true, badge: true, sound: true);
-    return result ?? false;
+        
+    return result ?? true; // Default true untuk Android di bawah 13
   }
 
   // Schedule notification untuk task (X hari sebelum deadline)
@@ -62,8 +70,8 @@ class NotificationService {
       final month = int.parse(parts[1]);
       final year = int.parse(parts[2]);
 
-      // Create DateTime untuk deadline
-      final deadlineDate = DateTime(year, month, day, 08, 00);
+      // Create DateTime untuk deadline (Set Alarm jam 08:00 Pagi)
+      final deadlineDate = DateTime(year, month, day, 8, 0);
 
       // Subtract days untuk notification time
       final notificationTime = deadlineDate.subtract(
@@ -76,10 +84,10 @@ class NotificationService {
         return;
       }
 
-      // Convert ke timezone lokal
+      // Convert ke timezone lokal (WITA)
       final tzNotificationTime = tz.TZDateTime.from(notificationTime, tz.local);
 
-      final androidDetails = AndroidNotificationDetails(
+      final androidDetails = const AndroidNotificationDetails(
         'task_deadline_channel',
         'Task Deadline Reminders',
         channelDescription:
@@ -88,7 +96,6 @@ class NotificationService {
         priority: Priority.high,
         enableVibration: true,
         playSound: true,
-        styleInformation: const BigTextStyleInformation(''),
       );
 
       final iosDetails = const DarwinNotificationDetails(
@@ -104,19 +111,17 @@ class NotificationService {
 
       // Schedule notification
       await _plugin.zonedSchedule(
-        task.id ?? 0,
+        task.id ?? DateTime.now().millisecondsSinceEpoch.remainder(100000), // Antisipasi jika id null
         'Tugas: ${task.title}',
         'Deadline dalam $daysBeforeDeadline hari - ${task.deadline}',
         tzNotificationTime,
         notificationDetails,
-        androidAllowWhileIdle: true,
+        androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle, // <--- Update versi baru
         uiLocalNotificationDateInterpretation:
             UILocalNotificationDateInterpretation.absoluteTime,
       );
 
-      print(
-        'Notifikasi scheduled untuk: ${task.title} pada $tzNotificationTime',
-      );
+      print('Notifikasi scheduled untuk: ${task.title} pada $tzNotificationTime');
     } catch (e) {
       print('Error scheduling notification: $e');
     }
@@ -144,7 +149,7 @@ class NotificationService {
     print('Semua notifikasi di-cancel');
   }
 
-  // Show instant notification (testing)
+  // Show instant notification (Sangat berguna buat testing)
   Future<void> showInstantNotification({
     required String title,
     required String body,

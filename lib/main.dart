@@ -1,6 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:provider/provider.dart';
+
+// --- TAMBAHAN IMPORT SERVICE NOTIFIKASI ---
+import 'data/services/notification_service.dart'; 
+// ------------------------------------------
+
 import 'viewmodels/auth_viewmodel.dart';
 import 'viewmodels/task_viewmodel.dart';
 import 'viewmodels/theme_viewmodel.dart';
@@ -18,8 +23,13 @@ void main() async {
     anonKey: 'sb_publishable_AM-LO92s42rwJj3vJt07mw_TBpP1ZKW',
   );
 
+  // 3. Inisialisasi Notifikasi & Zona Waktu (WITA) sebelum aplikasi jalan
+  final notificationService = NotificationService();
+  await notificationService.init();
+  await notificationService.requestPermissions(); // Ini yang memunculkan pop-up izin Android 13+
+
   runApp(
-    // 3. Bungkus dengan MultiProvider supaya ViewModel bisa diakses di semua screen
+    // 4. Bungkus dengan MultiProvider supaya ViewModel bisa diakses di semua screen
     MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => AuthViewModel()),
@@ -43,7 +53,7 @@ class _MyAppState extends State<MyApp> {
   @override
   void initState() {
     super.initState();
-    // Initialize notification service
+    // Initialize notification service (Tetap dibiarkan untuk ViewModel Abang)
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<NotificationViewModel>().initNotificationService();
     });
