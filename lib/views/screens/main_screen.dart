@@ -62,46 +62,102 @@ class _MainScreenState extends State<MainScreen>
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
 
-      // Menggantikan AppBarLayout dan Toolbar
+      // Menggantikan AppBarLayout dan Toolbar dengan Design Profesional
       appBar: AppBar(
-        backgroundColor: navyBlue,
+        backgroundColor: Colors.transparent,
         elevation: 0,
         centerTitle: false,
-        title: const Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text(
-              'Agenda Kuliah',
-              style: TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
+        toolbarHeight: 100,
+        title: Container(
+          padding: const EdgeInsets.only(left: 4, right: 4, top: 8, bottom: 16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  // Icon visual untuk header
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: softPink.withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Icon(
+                      Icons.calendar_month_rounded,
+                      color: softPink,
+                      size: 24,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  // Judul dan Subtitle di samping icon
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Agenda Kuliah',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 22,
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Kelola tugas harianmu dengan lebih rapi',
+                          style: TextStyle(
+                            color: Colors.white.withOpacity(0.8),
+                            fontSize: 13,
+                            fontWeight: FontWeight.w400,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
-            ),
-            SizedBox(height: 2),
-            Text(
-              'Kelola tugas harianmu dengan lebih rapi',
-              style: TextStyle(color: Colors.white70, fontSize: 12),
-            ),
-          ],
+            ],
+          ),
         ),
         flexibleSpace: Container(
           decoration: const BoxDecoration(gradient: AppTheme.mainGradient),
         ),
 
-        // Menggantikan TabLayout
-        bottom: TabBar(
-          controller: _tabController,
-          onTap: (_) => _onTabChanged(),
-          indicatorColor: Colors.white,
-          indicatorWeight: 3,
-          labelColor: Colors.white,
-          unselectedLabelColor: Colors.white60,
-          tabs: const [
-            Tab(icon: Icon(Icons.check_circle_outline), text: "Aktif"),
-            Tab(icon: Icon(Icons.done_all_rounded), text: "Selesai"),
-            Tab(icon: Icon(Icons.person_outline_rounded), text: "Profil"),
-          ],
+        // Menggantikan TabLayout dengan design lebih modern
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(56),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 0),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.05),
+              border: Border(
+                top: BorderSide(color: Colors.white.withOpacity(0.1), width: 1),
+              ),
+            ),
+            child: TabBar(
+              controller: _tabController,
+              onTap: (_) => _onTabChanged(),
+              indicatorColor: softPink,
+              indicatorWeight: 3,
+              labelColor: Colors.white,
+              unselectedLabelColor: Colors.white54,
+              labelStyle: const TextStyle(
+                fontWeight: FontWeight.w600,
+                fontSize: 13,
+              ),
+              unselectedLabelStyle: const TextStyle(
+                fontWeight: FontWeight.w500,
+                fontSize: 13,
+              ),
+              tabs: const [
+                Tab(icon: Icon(Icons.check_circle_outline), text: "Aktif"),
+                Tab(icon: Icon(Icons.done_all_rounded), text: "Selesai"),
+                Tab(icon: Icon(Icons.person_outline_rounded), text: "Profil"),
+              ],
+            ),
+          ),
         ),
       ),
 
